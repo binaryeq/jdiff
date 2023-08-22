@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
  */
 public class DiffDetector {
 
-    private static Set<String> SHORT_SRC_ANNOTATION_NAMES = Set.of("SuppressWarnings");
+    private static Set<String> SHORT_SRC_ANNOTATION_NAMES = Set.of("SuppressWarnings","Override");
 
     private static Set<String> FULL_SRC_ANNOTATION_NAMES = Set.of("java.lang.SuppressWarnings");
 

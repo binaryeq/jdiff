@@ -77,7 +77,7 @@ public class DiffDetectorTests {
     public void testSourceAnnotationAdded2() {
         hasNoChanges("Class8");
     }
-    
+
     @Test
     public void testSourceAnnotationAdded3() {
         hasNoChanges("Class8");
