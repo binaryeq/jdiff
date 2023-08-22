@@ -63,5 +63,24 @@ public class DiffDetectorTests {
         hasChanges("Class5");
     }
 
+    @Test
+    public void testRuntimeAnnotationAdded() {
+        hasChanges("Class6");
+    }
+
+    @Test
+    public void testSourceAnnotationAdded1() {
+        hasNoChanges("Class7");
+    }
+
+    @Test
+    public void testSourceAnnotationAdded2() {
+        hasNoChanges("Class8");
+    }
+    
+    @Test
+    public void testSourceAnnotationAdded3() {
+        hasNoChanges("Class8");
+    }
 
 }

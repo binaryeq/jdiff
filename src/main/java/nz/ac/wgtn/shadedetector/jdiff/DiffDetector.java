@@ -2,11 +2,10 @@ package nz.ac.wgtn.shadedetector.jdiff;
 
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.PackageDeclaration;
 import com.github.javaparser.ast.comments.Comment;
-import com.github.javaparser.ast.expr.*;
+import com.github.javaparser.ast.expr.AnnotationExpr;
+import com.github.javaparser.ast.expr.Name;
 import com.github.javaparser.metamodel.PropertyMetaModel;
 import com.github.javaparser.utils.Pair;
 import com.google.common.collect.Streams;
@@ -22,13 +21,33 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
- * Diff detection.
+ * change detection.
  * @author jens dietrich
  */
 public class DiffDetector {
 
+    private static Set<String> SHORT_SRC_ANNOTATION_NAMES = Set.of("SuppressWarnings");
+
+    private static Set<String> FULL_SRC_ANNOTATION_NAMES = Set.of("java.lang.SuppressWarnings");
+
     private static Logger LOGGER = LoggerFactory.getLogger(DiffDetector.class);
-    public static final Predicate<Node> IS_RELEVANT_CHILD_NODE = node -> !(node instanceof Comment) && !(node instanceof ImportDeclaration) && !(node instanceof PackageDeclaration);
+    public static final Predicate<Node> IS_COMMENT = node -> node instanceof Comment;
+    public static final Predicate<Node> IS_ANNOTATION = node -> node instanceof AnnotationExpr;
+    public static final Predicate<Node> IS_RUNTIME_ANNOTATION = node -> {
+        if (node instanceof AnnotationExpr) {
+            AnnotationExpr anno = (AnnotationExpr) node;
+            Name name = anno.findFirst(Name.class).orElse(null);
+            if (name!=null) {
+                String n = name.asString();
+                if (SHORT_SRC_ANNOTATION_NAMES.contains(n) || FULL_SRC_ANNOTATION_NAMES.contains(n)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    };
+
+
 
     /**
      * Diff two folders containing source code, return pairs of sources with changes.
@@ -84,10 +103,6 @@ public class DiffDetector {
         if (node1 instanceof Comment) {
             return false;
         }
-        else if (node1 instanceof AnnotationExpr) {
-            // filter false negatives
-            return true;
-        }
 
         // but normally node types should be the same
         if (node1.getClass() != node2.getClass()) {  // must be of the same kind
@@ -127,21 +142,28 @@ public class DiffDetector {
 //        }
 
 
-        List<Node> relevantChildNodes1 = node1.getChildNodes().stream().filter(IS_RELEVANT_CHILD_NODE).collect(Collectors.toList());
-        List<Node> relevantChildNodes2 = node2.getChildNodes().stream().filter(IS_RELEVANT_CHILD_NODE).collect(Collectors.toList());
+        List<Node> children1 = node1.getChildNodes().stream().filter(IS_COMMENT.negate()).collect(Collectors.toList());
+        List<Node> children2 = node2.getChildNodes().stream().filter(IS_COMMENT.negate()).collect(Collectors.toList());
 
-        if (relevantChildNodes1.isEmpty() && relevantChildNodes2.isEmpty()) {
+
+        List<Node> regularChildren1 = children1.stream().filter(IS_ANNOTATION.negate()).collect(Collectors.toList());
+        List<Node> regularChildren2 = children2.stream().filter(IS_ANNOTATION.negate()).collect(Collectors.toList());
+
+        List<Node> rtAnnotations1 = children1.stream().filter(IS_RUNTIME_ANNOTATION).collect(Collectors.toList());
+        List<Node> rtAnnotations2 = children2.stream().filter(IS_RUNTIME_ANNOTATION).collect(Collectors.toList());
+
+        if (regularChildren1.isEmpty() && regularChildren2.isEmpty() && rtAnnotations1.isEmpty() & rtAnnotations2.isEmpty()) {
             // compare leaves
             return !Objects.equals(node1.toString().trim(),node2.toString().trim());
         }
 
-        return hasChanges(relevantChildNodes1,relevantChildNodes2);
+        return hasChanges(regularChildren1,regularChildren2) || hasChanges(rtAnnotations1,rtAnnotations2);
     }
 
 
     static boolean hasChanges(List<Node> childNodes1, List<Node> childNodes2) {
         if (childNodes1.size()!=childNodes2.size()) {
-            return false;
+            return true;
         }
         boolean result = false;
         for (int i=0;i<childNodes1.size();i++) {
