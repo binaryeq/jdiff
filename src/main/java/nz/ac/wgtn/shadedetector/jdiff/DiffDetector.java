@@ -3,6 +3,8 @@ package nz.ac.wgtn.shadedetector.jdiff;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.PackageDeclaration;
+import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.Name;
@@ -19,6 +21,8 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+
+import static java.lang.Package.getPackage;
 
 /**
  * change detection.
@@ -46,6 +50,11 @@ public class DiffDetector {
         }
         return true;
     };
+
+
+    static class Context {
+        String packageName = null;
+    }
 
 
 
@@ -84,10 +93,19 @@ public class DiffDetector {
         return Collections.EMPTY_SET;
     }
 
+
     static boolean hasChangesInCU(Path path1, Path path2) {
         try {
             CompilationUnit cu1 = StaticJavaParser.parse(path1);
             CompilationUnit cu2 = StaticJavaParser.parse(path2);
+
+            String className1 = getClassName(path1,cu1);
+            String className2 = getClassName(path2,cu2);
+
+            if (!Objects.equals(className1,className2)) {
+                return false;
+            }
+
             // String pck1 = cu1.getPackageDeclaration().isPresent() ? cu1.getPackageDeclaration().get().getNameAsString() : "";
             // String pck2 = cu2.getPackageDeclaration().isPresent() ? cu1.getPackageDeclaration().get().getNameAsString() : "";
             // boolean samePackage = Objects.equals(pck1,pck2);
@@ -96,6 +114,17 @@ public class DiffDetector {
         } catch (Exception e) {
             throw new IllegalArgumentException(e);
         }
+    }
+
+
+    static String getClassName(Path path,CompilationUnit cu)  {
+        String qName = "";
+        PackageDeclaration pckDecl = cu.getPackageDeclaration().orElse(null);
+        if (pckDecl!=null) {
+            qName = pckDecl.getNameAsString() + '.';
+        }
+        TypeDeclaration typeDecl = cu.getPrimaryType().orElseThrow(() -> new IllegalArgumentException("CU does not define a primary type (class with the same name as the file): " + path.toFile().getAbsolutePath()));
+        return qName + typeDecl.getNameAsString();
     }
 
     static boolean hasChanges(Node node1, Node node2) {

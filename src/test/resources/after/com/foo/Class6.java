@@ -1,8 +1,8 @@
 package com.foo;
 
-public class Class7 {
+public class Class6 {
 
-    @SuppressWarnings // runtime annotation added !
+    @Deprecated // runtime annotation added !
     public static int foo () {
         return 42 ;
     }

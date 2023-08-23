@@ -1,7 +1,10 @@
 package nz.ac.wgtn.shadedetector.jdiff;
 
+import com.github.javaparser.StaticJavaParser;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -36,6 +39,21 @@ public class DiffDetectorTests {
         Path src1 = getSrc("BrokenClass","before");
         Path src2 = getSrc("Class1","before");
         assertThrows(IllegalArgumentException.class, () -> DiffDetector.hasChangesInCU(src1,src2));
+    }
+
+    @Test
+    public void testClassNameWithPackage() throws Exception {
+        Path src = getSrc("Class1","before");
+        String className = DiffDetector.getClassName(src, StaticJavaParser.parse(src));
+        assertEquals("com.foo.Class1",className);
+    }
+
+    @Test
+    public void testClassNameWithoutPackage() throws Exception {
+        String p = DiffDetectorTests.class.getResource("/ClassWithoutPackage.java").getPath();
+        Path src = Path.of(p);
+        String className = DiffDetector.getClassName(src, StaticJavaParser.parse(src));
+        assertEquals("ClassWithoutPackage",className);
     }
 
     @Test
@@ -80,7 +98,7 @@ public class DiffDetectorTests {
 
     @Test
     public void testSourceAnnotationAdded3() {
-        hasNoChanges("Class8");
+        hasNoChanges("Class9");
     }
 
 }
