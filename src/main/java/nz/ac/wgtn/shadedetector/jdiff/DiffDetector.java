@@ -33,6 +33,7 @@ public class DiffDetector {
     private static Set<String> FULL_SRC_ANNOTATION_NAMES = Set.of("java.lang.SuppressWarnings");
 
     private static Logger LOGGER = LoggerFactory.getLogger(DiffDetector.class);
+
     public static final Predicate<Node> IS_COMMENT = node -> node instanceof Comment;
     public static final Predicate<Node> IS_ANNOTATION = node -> node instanceof AnnotationExpr;
     public static final Predicate<Node> IS_RUNTIME_ANNOTATION = node -> {
