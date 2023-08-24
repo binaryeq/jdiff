@@ -22,10 +22,8 @@ import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static java.lang.Package.getPackage;
-
 /**
- * change detection.
+ * Change detection.
  * @author jens dietrich
  */
 public class DiffDetector {
@@ -52,28 +50,23 @@ public class DiffDetector {
     };
 
 
-    static class Context {
-        String packageName = null;
-    }
-
-
-
     /**
-     * Diff two folders containing source code, return pairs of sources with changes.
-     * Changes not effecting bytecode will be ignored: comments, formatting, or annotations with RetentionPolicy.SOURCE.
-     * @param original
-     * @param cloneCandidate
+     * Given two folders with Java sources, compute and return a set of top-level classes
+     * that occur in both folders, and have some relevant changes.
+     * Relevant means that formatting details, comments and annotation with source retention (from a given list) are not counted.
+     * @param folder1
+     * @param folder2
      * @return
      */
-    public Set<Pair<Path,Path>> diff(Path original, Path cloneCandidate) {
+    public static Set<String> findChangedClasses(Path folder1, Path folder2) {
         try {
-            List<Path> originalJavaSources = listJavaSources(original,true);
-            List<Path> cloneCandidateJavaSources = listJavaSources(cloneCandidate,true);
+            List<Path> sources1 = listJavaSources(folder1,true);
+            List<Path> sources2 = listJavaSources(folder2,true);
 
             List<Pair<Path,Path>> potentialMatches = new ArrayList<>();
-            for (Path originalSource:originalJavaSources) {
+            for (Path originalSource:sources1) {
                 String cuName1 = originalSource.getName(originalSource.getNameCount()-1).toString();
-                for (Path cloneSource : cloneCandidateJavaSources) {
+                for (Path cloneSource : sources2) {
                     String cuName2 = cloneSource.getName(cloneSource.getNameCount() - 1).toString();
                     if (Objects.equals(cuName1, cuName2)) {
                         potentialMatches.add(new Pair<>(originalSource, cloneSource));
@@ -84,17 +77,26 @@ public class DiffDetector {
             LOGGER.info("Analysing {} pairs of java source code",potentialMatches.size());
 
             return potentialMatches.stream()
-                .filter(p -> hasChangesInCU(p.a,p.b))
+                .map(p -> hasChangesInCU(p.a,p.b))
+                .filter(c -> c.isPresent())
+                .map(c -> c.get())
                 .collect(Collectors.toSet());
         }
         catch (IOException x) {
-            LOGGER.error("Error extracting Java sources from {},{}",original,cloneCandidate,x);
+            LOGGER.error("Error extracting Java sources from {},{}",folder1,folder2,x);
         }
         return Collections.EMPTY_SET;
     }
 
 
-    static boolean hasChangesInCU(Path path1, Path path2) {
+    /**
+     * Detect whether the sources associated with those files have changes.
+     * If so, return the fully classified classname of the top-level class, or null otherwise
+     * @param path1
+     * @param path2
+     * @return
+     */
+    static Optional<String> hasChangesInCU(Path path1, Path path2) {
         try {
             CompilationUnit cu1 = StaticJavaParser.parse(path1);
             CompilationUnit cu2 = StaticJavaParser.parse(path2);
@@ -103,19 +105,15 @@ public class DiffDetector {
             String className2 = getClassName(path2,cu2);
 
             if (!Objects.equals(className1,className2)) {
-                return false;
+                return Optional.empty();
             }
 
-            // String pck1 = cu1.getPackageDeclaration().isPresent() ? cu1.getPackageDeclaration().get().getNameAsString() : "";
-            // String pck2 = cu2.getPackageDeclaration().isPresent() ? cu1.getPackageDeclaration().get().getNameAsString() : "";
-            // boolean samePackage = Objects.equals(pck1,pck2);
-            return hasChanges(cu1,cu2);
+            return hasChanges(cu1,cu2) ? Optional.of(className1) : Optional.empty();
 
         } catch (Exception e) {
             throw new IllegalArgumentException(e);
         }
     }
-
 
     static String getClassName(Path path,CompilationUnit cu)  {
         String qName = "";
@@ -149,26 +147,6 @@ public class DiffDetector {
                 return true;
             }
         }
-
-
-        // special checks for special types
-
-
-//        if (node1 instanceof BinaryExpr) {
-//            BinaryExpr binExpr1 = (BinaryExpr) node1;
-//            BinaryExpr binExpr2 = (BinaryExpr) node2;
-//            if (binExpr1.getOperator()!=binExpr2.getOperator()) {
-//                return true;
-//            }
-//        }
-//
-//        if (node1 instanceof UnaryExpr) {
-//            UnaryExpr unExpr1 = (UnaryExpr) node1;
-//            UnaryExpr unExpr2 = (UnaryExpr) node2;
-//            if (unExpr1.getOperator()!=unExpr2.getOperator()) {
-//                return true;
-//            }
-//        }
 
 
         List<Node> children1 = node1.getChildNodes().stream().filter(IS_COMMENT.negate()).collect(Collectors.toList());
