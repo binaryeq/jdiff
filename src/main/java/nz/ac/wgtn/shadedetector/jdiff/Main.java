@@ -60,7 +60,7 @@ public class Main {
 
     private static void printHelp(Options options) {
         String header = "Arguments:\n\n";
-        String footer = "\nPlease report issues at https://github.com/jensdietrich/jdiff-study/issues/";
+        String footer = "\nPlease report issues at https://github.com/jensdietrich/jdiff/issues/";
         HelpFormatter formatter = new HelpFormatter();
         formatter.setWidth(150);
         formatter.printHelp("java -cp <classpath> Main", header, options, footer, true);
